@@ -3,7 +3,8 @@ const router = express.Router();
 
 // const fruits = require("../fruits.js");
 const Fruit = require('../models').Fruit
-
+const User =require('../models').User;
+const Season = require("../models").Season;
 //Sequelize GET route
 router.get("/", (req, res) => {
   Fruit.findAll().then((fruits) => {
@@ -33,14 +34,29 @@ router.post("/", (req, res) => {
 });
 
 router.get("/:id", (req, res) => {
-  Fruit.findByPk(req.params.id).then((fruit) => {
-    res.render('show.ejs', { fruit: fruit });
-  });
+  Fruit.findByPk(req.params.id, {
+      include: [{
+        model: User,
+      attributes: ['name']
+    },
+    {
+      model: Season,
+    },
+  ],
+      attributes: ['name', 'color', 'readyToEat']
+  })
+  .then(fruit => {
+      res.render('show.ejs', {
+          fruit: fruit
+      });
+  })
 });
 
 router.get("/:id/edit", function (req, res) {
   Fruit.findByPk(req.params.id).then((fruit) => {
-    res.render('edit.ejs', { fruit });
+    Season.findAll().then((allSeasons) => {
+    res.render('edit.ejs', { fruit: fruit, seasons: allSeasons });
+    })
   });
 });
 
@@ -51,7 +67,14 @@ router.put("/:id", (req, res) => {
   Fruit.update(req.body, {
     where: { id: req.params.id },
     returning: true
-  }).then((fruit) => res.redirect("/fruits"));
+  }).then((fruit) => {  
+    Season.findByPk(req.body.season).then((foundSeason) => {
+      Fruit.findByPk(req.params.id).then((foundFruit) => {
+        foundFruit.addSeason(foundSeason);
+        res.redirect("/fruits");
+      });
+    });
+  });
 });
 
 router.delete("/:id", (req, res) => {
